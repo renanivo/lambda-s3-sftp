@@ -1,69 +1,73 @@
 import os
+from StringIO import StringIO
 
 import boto3
 import paramiko
 
+PRIVATE_KEY = ''
+
 
 def lambda_handler(event, context):
-    print 'Request ID: {}'.format(context.aws_request_id)
-
+    ssh_username = os.environ['SSH_USERNAME']
     ssh_host = os.environ['SSH_HOST']
-    ssh_dir = os.environ.get['SSH_DIR']
-    ssh_port = os.environ.get('SSH_PORT', 22)
+    ssh_dir = os.environ['SSH_DIR']
+    ssh_port = int(os.environ.get('SSH_PORT', 22))
     ssh_password = os.environ.get('SSH_PASSWORD')
     key_filename = os.environ.get('SSH_KEY_FILENAME', 'key.pem')
+
+    pkey = paramiko.RSAKey.from_private_key(StringIO(PRIVATE_KEY))
 
     if not os.path.isfile(key_filename):
         key_filename = None
 
-    sftp, ssh = connect_to_SFTP(
+    sftp, transport = connect_to_SFTP(
         hostname=ssh_host,
         port=ssh_port,
+        username=ssh_username,
         password=ssh_password,
-        key_filename=key_filename
+        pkey=pkey
     )
     s3 = boto3.client('s3')
 
-    try:
+    if ssh_dir:
+        sftp.chdir(ssh_dir)
+
+    with transport:
         for record in event['Records']:
             uploaded = record['s3']
             filename = uploaded['object']['key'].split('/')[-1]
-            remote_dest = '{path}/{filename}'.format(path=ssh_dir,
-                                                     filename=filename)
 
-            transfer_file(
-                s3_client=s3,
-                bucket=uploaded['bucket']['name'],
-                key=uploaded['object']['key'],
-                sftp_client=sftp,
-                sftp_dest=remote_dest
-            )
-    except Exception as e:
-        print 'Could not upload file to SFTP. Error: {}'.format(e)
+            try:
+                transfer_file(
+                    s3_client=s3,
+                    bucket=uploaded['bucket']['name'],
+                    key=uploaded['object']['key'],
+                    sftp_client=sftp,
+                    sftp_dest=filename
+                )
+            except Exception:
+                print 'Could not upload file to SFTP'
+                raise
 
-    else:
-        print 'S3 file uploaded to SFTP successfully'
-
-    finally:
-        sftp.close()
-        ssh.close()
+            else:
+                print 'S3 file "{}" uploaded to SFTP successfully'.format(
+                    uploaded['object']['key']
+                )
 
 
-def connect_to_SFTP(hostname, port, password, key_filename):
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(
-        hostname=hostname,
-        port=port,
+def connect_to_SFTP(hostname, port, username, password, pkey):
+    transport = paramiko.Transport((hostname, port))
+    transport.connect(
+        username=username,
         password=password,
-        key_filename=key_filename
+        pkey=pkey
     )
-    sftp = ssh.open_sftp()
+    sftp = paramiko.SFTPClient.from_transport(transport)
 
-    return sftp, ssh
+    return sftp, transport
 
 
-def transfer_file(self, s3_client, bucket, key, sftp_client, sftp_dest):
+def transfer_file(s3_client, bucket, key, sftp_client, sftp_dest):
     """
     Download file from S3 and upload to SFTP
     """
@@ -71,5 +75,5 @@ def transfer_file(self, s3_client, bucket, key, sftp_client, sftp_dest):
         s3_client.download_fileobj(
             Bucket=bucket,
             Key=key,
-            FileObj=sftp_file
+            Fileobj=sftp_file
         )
