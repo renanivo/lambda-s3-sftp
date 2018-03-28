@@ -10,6 +10,13 @@ Deployment
 2. `make package`
 3. Upload `package.zip` to AWS Lambda (on [console](http://docs.aws.amazon.com/lambda/latest/dg/get-started-create-function.html) or [command line](http://docs.aws.amazon.com/lambda/latest/dg/vpc-ec-upload-deployment-pkg.html))
 
+Configuration in AWS Lambda
+---------------------------
+ * Select Python 2.7 as the runtime environment.
+ * In AWS Lambda, you can define a trigger. Select S3 and then PUT. you can limit the triggers to a particular folder there.
+ * Set the handler name to "main.lambda_handler"
+ * Make sure you give Lambda permission to read from S3
+
 Supported Events
 ----------------
 
