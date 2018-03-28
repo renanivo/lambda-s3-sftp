@@ -15,7 +15,10 @@ def lambda_handler(event, context):
     ssh_password = os.environ.get('SSH_PASSWORD')
     key_filename = os.environ.get('SSH_KEY_FILENAME', 'key.pem')
 
-    pkey = paramiko.RSAKey.from_private_key(StringIO(PRIVATE_KEY))
+    pkey = None
+
+    if PRIVATE_KEY:
+        pkey = paramiko.RSAKey.from_private_key(StringIO(PRIVATE_KEY))
 
     if not os.path.isfile(key_filename):
         key_filename = None
