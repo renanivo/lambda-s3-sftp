@@ -3,6 +3,11 @@
 
 Send an S3 file, whenever it is uploaded, to a remote server using SFTP
 
+> **Warning:** This repository is not under development or maintenance anymore,
+I strongly recommend using the [yunojuno's fork](https://github.com/yunojuno/lambda-s3-sftp)
+instead
+
+
 Deployment
 ----------
 
