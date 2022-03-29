@@ -1,2 +1,2 @@
 boto3==1.4.3
-paramiko==2.1.1
+paramiko==2.10.1
